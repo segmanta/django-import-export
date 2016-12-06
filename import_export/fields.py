@@ -1,3 +1,4 @@
+import inspect
 from __future__ import unicode_literals
 
 from . import widgets
@@ -83,12 +84,11 @@ class Field(object):
 
         for attr in attrs:
             try:
-                #DAN if the field is related we pass the id as value instead of querying the database
+                #if the field is related we pass the id as value instead of querying the database
                 if self.is_related_field(value):
-                    # field = obj._meta.get_field(self.column_name)
-                    # primary_key_name = field.related_model._meta.pk.name
-                    # value = getattr(value, "%s_%s" % (attr, primary_key_name), None)
-                    value = getattr(value, "%s_id" % attr, None) #TODO find the base class primary key alias
+                    field = obj._meta.get_field(self.column_name)
+                    primary_key_name = Field.get_first_superclass_pk_alias(related_model)
+                    value = getattr(value, "%s_%s" % (attr, primary_key_name), None)
                 else:
                     value = getattr(value, attr, None)
             except (ValueError, ObjectDoesNotExist):
@@ -104,7 +104,6 @@ class Field(object):
             value = value()
         return value
 
-    # DAN
     def is_related_field(self, obj):
         attrs = self.attribute.split('__')
         # doesn't work on complicated query fields
@@ -131,6 +130,15 @@ class Field(object):
         value = self.get_value(obj)
         if value is None:
             return ""
-        elif self.is_related_field(obj):    # DAN if related field the id is passes as is
+        elif self.is_related_field(obj):    # if related field the id is passes as is
             return value
         return self.widget.render(value)
+
+    @staticmethod
+    def get_first_superclass_pk_alias(model_class):
+        superclasses_list = inspect.getmro(model_class)
+        for sc in superclasses_list:
+            if hasattr(sc, '_meta') and sc._meta.pk is not None:
+                pk = sc._meta.pk.name
+
+        return pk
