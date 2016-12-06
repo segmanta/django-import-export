@@ -5,6 +5,7 @@ from . import widgets
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models.manager import Manager
 from django.db.models.fields import NOT_PROVIDED
+from django.db.models.fields.related import RelatedField
 
 
 class Field(object):
@@ -82,7 +83,14 @@ class Field(object):
 
         for attr in attrs:
             try:
-                value = getattr(value, attr, None)
+                #DAN if the field is related we pass the id as value instead of querying the database
+                if self.is_related_field(value):
+                    # field = obj._meta.get_field(self.column_name)
+                    # primary_key_name = field.related_model._meta.pk.name
+                    # value = getattr(value, "%s_%s" % (attr, primary_key_name), None)
+                    value = getattr(value, "%s_id" % attr, None) #TODO find the base class primary key alias
+                else:
+                    value = getattr(value, attr, None)
             except (ValueError, ObjectDoesNotExist):
                 # needs to have a primary key value before a many-to-many
                 # relationship can be used.
@@ -95,6 +103,15 @@ class Field(object):
         if callable(value) and not isinstance(value, Manager):
             value = value()
         return value
+
+    # DAN
+    def is_related_field(self, obj):
+        attrs = self.attribute.split('__')
+        # doesn't work on complicated query fields
+        if len(attrs) != 1:
+            return False
+        field = obj._meta.get_field(attrs[0])
+        return isinstance(field, RelatedField)
 
     def save(self, obj, data):
         """
@@ -114,4 +131,6 @@ class Field(object):
         value = self.get_value(obj)
         if value is None:
             return ""
+        elif self.is_related_field(obj):    # DAN if related field the id is passes as is
+            return value
         return self.widget.render(value)
