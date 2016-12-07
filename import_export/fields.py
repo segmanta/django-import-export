@@ -87,7 +87,7 @@ class Field(object):
                 #if the field is related we pass the id as value instead of querying the database
                 if self.is_related_field(value):
                     field = obj._meta.get_field(self.column_name)
-                    primary_key_name = Field.get_first_superclass_pk_alias(related_model)
+                    primary_key_name = Field.get_first_superclass_pk_alias(field.related_model)
                     value = getattr(value, "%s_%s" % (attr, primary_key_name), None)
                 else:
                     value = getattr(value, attr, None)
