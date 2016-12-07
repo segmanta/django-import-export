@@ -1,6 +1,6 @@
-import inspect
 from __future__ import unicode_literals
 
+import inspect
 from . import widgets
 
 from django.core.exceptions import ObjectDoesNotExist
