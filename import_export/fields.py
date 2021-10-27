@@ -114,6 +114,10 @@ class Field:
         # doesn't work on complicated query fields
         if len(attrs) != 1:
             return False
+
+        if not hasattr(obj, '_meta'):
+            return False
+
         field = obj._meta.get_field(attrs[0])
         return isinstance(field, RelatedField)
 
