@@ -1,12 +1,14 @@
-from __future__ import unicode_literals
-
 import os
+import sys
+
+import django
 
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
+    'django.contrib.messages',
     'django.contrib.sites',
 
     'import_export',
@@ -24,7 +26,7 @@ STATIC_URL = '/static/'
 
 SECRET_KEY = '2n6)=vnp8@bu0om9d05vwf7@=5vpn%)97-!d*t4zq1mku%0-@j'
 
-MIDDLEWARE_CLASSES = (
+MIDDLEWARE = (
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -42,23 +44,33 @@ TEMPLATES = [
             'context_processors': (
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'django.template.context_processors.request',
             ),
         },
     },
 ]
+
+if django.VERSION >= (3, 2):
+    DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 if os.environ.get('IMPORT_EXPORT_TEST_TYPE') == 'mysql-innodb':
     IMPORT_EXPORT_USE_TRANSACTIONS = True
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.mysql',
-            'TEST_NAME': 'import_export_test',
+            'NAME': 'import_export',
             'USER': os.environ.get('IMPORT_EXPORT_MYSQL_USER', 'root'),
-            'OPTIONS': {
-               'init_command': 'SET storage_engine=INNODB',
+            'PASSWORD': os.environ.get('IMPORT_EXPORT_MYSQL_PASSWORD', 'password'),
+            'HOST': '127.0.0.1',
+            'PORT': 3306,
+            'TEST': {
+                'CHARSET': 'utf8',
+                'COLLATION': 'utf8_general_ci',
             }
         }
     }
+
+
 elif os.environ.get('IMPORT_EXPORT_TEST_TYPE') == 'postgres':
     IMPORT_EXPORT_USE_TRANSACTIONS = True
     DATABASES = {
@@ -72,10 +84,14 @@ elif os.environ.get('IMPORT_EXPORT_TEST_TYPE') == 'postgres':
         }
     }
 else:
+    if 'test' in sys.argv:
+        database_name = ''
+    else:
+        database_name = os.path.join(os.path.dirname(__file__), 'database.db')
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': os.path.join(os.path.dirname(__file__), 'database.db'),
+            'NAME': database_name,
         }
     }
 
@@ -90,3 +106,6 @@ LOGGING = {
     'root': {
         'handlers': ['console'],
     }}
+
+
+USE_TZ = False

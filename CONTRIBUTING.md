@@ -4,6 +4,7 @@ Contributing
 django-import-export is open-source and, as such, grows (or shrinks) & improves in part
 due to the community. Below are some guidelines on how to help with the project.
 
+By contributing you agree to abide by the [Contributor Code of Conduct][coc]
 
 Philosophy
 ----------
@@ -23,8 +24,8 @@ So you've found a bug or have a great idea for a feature. Here's the steps you
 should take to help get it added/fixed in django-import-export:
 
 * First, check to see if there's an existing issue/pull request for the
-  bug/feature. All issues are at https://github.com/bmihelac/django-import-export/issues
-  and pull reqs are at https://github.com/bmihelac/django-import-export/pulls.
+  bug/feature. All issues are at https://github.com/django-import-export/django-import-export/issues
+  and pull reqs are at https://github.com/django-import-export/django-import-export/pulls.
 * If there isn't one there, please file an issue. The ideal report includes:
     * A description of the problem/suggestion.
     * How to recreate the bug.
@@ -73,3 +74,5 @@ If your contribution lacks any of these things, they will have to be added
 by a core contributor before being merged into django-import-export proper, which may take
 substantial time for the all-volunteer team to get to.
 
+
+[coc]: https://github.com/django-import-export/django-import-export/blob/master/CODE_OF_CONDUCT.md

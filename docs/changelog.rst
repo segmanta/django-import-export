@@ -1,11 +1,273 @@
 Changelog
 =========
 
-
-0.5.2 (unreleased)
+2.6.1 (2021-09-30)
 ------------------
 
-- Nothing changed yet.
+- Revert 'dark mode' css: causes issues in django2.2 (#1330)
+
+2.6.0 (2021-09-15)
+------------------
+
+- Added guard for null 'options' to fix crash (#1325)
+- Updated import.css to support dark mode (#1323)
+- Fixed regression where overridden mixin methods are not called (#1315)
+- Fix xls/xlsx import of Time fields (#1314)
+- Added support for 'to_encoding' attribute (#1311)
+- Removed travis and replaced with github actions for CI (#1307)
+- Increased test coverage (#1286)
+- Fix minor date formatting issue for date with years < 1000 (#1285)
+- Translate the zh_Hans missing part (#1279)
+- Remove code duplication from mixins.py and admin.py (#1277)
+- Fix example in BooleanWidget docs (#1276)
+- Better support for Django main (#1272)
+- don't test Django main branch with python36,37 (#1269)
+- Support Django 3.2 (#1265)
+- Correct typo in Readme (#1258)
+- Rephrase logical clauses in docstrings (#1255)
+- Support multiple databases (#1254)
+- Update django master to django main (#1251)
+- Add Farsi translated messages in the locale (#1249)
+- Update Russian translations (#1244)
+- Append export admin action using ModelAdmin.get_actions (#1241)
+- Fix minor mistake in makemigrations command (#1233)
+- Remove EOL Python 3.5 from CI (#1228)
+- CachedInstanceLoader defaults to empty when import_id is missing (#1225)
+- Add kwargs to import_row, import_object and import_field (#1190)
+- Call load_workbook() with data_only flag (#1095)
+
+
+2.5.0 (2020-12-30)
+------------------
+
+- Changed the default value for ``IMPORT_EXPORT_CHUNK_SIZE`` to 100. (#1196)
+- Add translation for Korean (#1218)
+- Update linting, CI, and docs.
+
+
+2.4.0 (2020-10-05)
+------------------
+
+- Fix deprecated Django 3.1 ``Signal(providing_args=...)`` usage.
+- Fix deprecated Django 3.1 ``django.conf.urls.url()`` usage.
+
+
+2.3.0 (2020-07-12)
+------------------
+
+- Add missing translation keys for all languages (#1144)
+- Added missing Portuguese translations (#1145)
+- Add kazakh translations (#1161)
+- Add bulk operations (#1149)
+
+2.2.0 (2020-06-01)
+------------------
+
+- Deal with importing a BooleanField that actually has `True`, `False`, and
+  `None` values. (#1071)
+- Add row_number parameter to before_import_row, after_import_row and after_import_instance (#1040)
+- Paginate queryset if Queryset.prefetch_related is used (#1050)
+
+2.1.0 (2020-05-02)
+------------------
+
+- Fix DurationWidget handling of zero value (#1117)
+
+- Make import diff view only show headers for user visible fields (#1109)
+
+- Make confirm_form accessible in get_import_resource_kwargs and get_import_data_kwargs (#994, #1108)
+
+- Initialize Decimal with text value, fix #1035 (#1039)
+
+- Adds meta flag 'skip_diff' to enable skipping of diff operations (#1045)
+
+- Update docs (#1097, #1114, #1122, #969, #1083, #1093)
+
+
+2.0.2 (2020-02-16)
+------------------
+
+- Add support for tablib >= 1.0 (#1061)
+
+- Add ability to install a subset of tablib supported formats and save some
+  automatic dependency installations (needs tablib >= 1.0)
+
+- Use column_name when checking row for fields (#1056)
+
+2.0.1 (2020-01-15)
+------------------
+
+- Fix deprecated Django 3.0 function usage (#1054)
+
+- Pin tablib version to not use new major version (#1063)
+
+- Format field is always shown on Django 2.2 (#1007)
+
+2.0 (2019-12-03)
+----------------
+
+- Removed support for Django < 2.0
+- Removed support for Python < 3.5
+- feat: Support for Postgres JSONb Field (#904)
+
+1.2.0 (2019-01-10)
+------------------
+
+- feat: Better surfacing of validation errors in UI / optional model instance validation (#852)
+
+- chore: Use modern setuptools in setup.py (#862)
+
+- chore: Update URLs to use https:// (#863)
+
+- chore: remove outdated workarounds
+
+- chore: Run SQLite tests with in-memory database
+
+- fix: Change logging level (#832)
+
+- fix: Changed `get_instance()` return val (#842)
+
+1.1.0 (2018-10-02)
+------------------
+
+- fix: Django2.1 ImportExportModelAdmin export (#797) (#819)
+
+- setup: add django2.1 to test matrix
+
+- JSONWidget for jsonb fields (#803)
+
+- Add ExportActionMixin (#809)
+
+- Add Import Export Permissioning #608 (#804)
+
+- write_to_tmp_storage() for import_action() (#781)
+
+- follow relationships on ForeignKeyWidget #798
+
+- Update all pypi.python.org URLs to pypi.org
+
+- added test for tsv import
+
+- added unicode support for TSV for python 2
+
+- Added ExportViewMixin (#692)
+
+1.0.1 (2018-05-17)
+------------------
+
+- Make deep copy of fileds from class attr to instance attr (#550)
+
+- Fix #612: NumberWidget.is_empty() should strip the value if string type (#613)
+
+- Fix #713: last day isn't included in results qs (#779)
+
+- use Python3 compatible MySql driver in development (#706)
+
+- fix: warning U mode is deprecated in python 3 (#776)
+
+- refactor: easier overridding widgets and default field (#769)
+
+- Updated documentation regardign declaring fields (#735)
+
+- custom js for action form also handles grappelli (#719)
+
+- Use 'verbose_name' in breadcrumbs to match Django default (#732)
+
+- Add Resource.get_diff_class() (#745)
+
+- Fix and add polish translation (#747)
+
+- Restore raise_errors to before_import (#749)
+
+
+1.0.0 (2018-02-13)
+------------------
+
+- Switch to semver versioning (#687)
+
+- Require Django>=1.8 (#685)
+
+- upgrade tox configuration (#737)
+
+
+0.7.0 (2018-01-17)
+------------------
+
+- skip_row override example (#702)
+
+- Testing against Django 2.0 should not fail (#709)
+
+- Refactor transaction handling (#690)
+
+- Resolves #703 fields shadowed (#703)
+
+- discourage installation as a zipped egg (#548)
+
+- Fixed middleware settings in test app for Django 2.x (#696)
+
+
+0.6.1 (2017-12-04)
+------------------
+
+- Refactors and optimizations (#686, #632, #684, #636, #631, #629, #635, #683)
+
+- Travis tests for Django 2.0.x (#691)
+
+
+0.6.0 (2017-11-23)
+------------------
+
+- Refactor import_row call by using keyword arguments (#585)
+
+- Added {{ block.super }} call in block bodyclass in admin/base_site.html (#582)
+
+- Add support for the Django DurationField with DurationWidget (#575)
+
+- GitHub bmihelac -> django-import-export Account Update (#574)
+
+- Add intersphinx links to documentation (#572)
+
+- Add Resource.get_import_fields() (#569)
+
+- Fixed readme mistake (#568)
+
+- Bugfix/fix m2m widget clean (#515)
+
+- Allow injection of context data for template rendered by import_action() and export_action() (#544)
+
+- Bugfix/fix exception in generate_log_entries() (#543)
+
+- Process import dataset and result in separate methods (#542)
+
+- Bugfix/fix error in converting exceptions to strings (#526)
+
+- Fix admin integration tests for the new "Import finished..." message, update Czech translations to 100% coverage. (#596)
+
+- Make import form type easier to override (#604)
+
+- Add saves_null_values attribute to Field to control whether null values are saved on the object (#611)
+
+- Add Bulgarian translations (#656)
+
+- Add django 1.11 to TravisCI (#621)
+
+- Make Signals code example format correctly in documentation (#553)
+
+- Add Django as requirement to setup.py (#634)
+
+- Update import of reverse for django 2.x (#620)
+
+- Add Django-version classifiers to setup.py’s CLASSIFIERS (#616)
+
+- Some fixes for Django 2.0 (#672)
+
+- Strip whitespace when looking up ManyToMany fields (#668)
+
+- Fix all ResourceWarnings during tests in Python 3.x (#637)
+
+- Remove downloads count badge from README since shields.io no longer supports it for PyPi (#677)
+
+- Add coveralls support and README badge (#678)
 
 
 0.5.1 (2016-09-29)
@@ -23,7 +285,7 @@ Changelog
 
 - Append rows to Result object via function call to allow overriding (#462)
 
-- Add get_resource_kwargs to allow passing request to resource (#457) 
+- Add get_resource_kwargs to allow passing request to resource (#457)
 
 - Expose Django user to get_export_data() and export() (#447)
 
@@ -290,7 +552,7 @@ Changelog
 * refactor admin integration to allow better handling of specific formats
   supported features and better handling of reading text files
 
-* include all avialable formats in Admin integration
+* include all available formats in Admin integration
 
 * bugfixes
 

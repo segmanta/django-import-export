@@ -1,19 +1,26 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-
+import json
+from datetime import date, datetime, time
 from decimal import Decimal
-from datetime import datetime, date
-from django.utils import datetime_safe, timezone, six
-from django.utils.encoding import smart_text
+
+import django
 from django.conf import settings
+from django.core.exceptions import ObjectDoesNotExist
+from django.utils import timezone
+from django.utils.dateparse import parse_duration
+from django.utils.encoding import force_str, smart_str
 
-try:
-    from django.utils.encoding import force_text
-except ImportError:
-    from django.utils.encoding import force_unicode as force_text
+
+def format_datetime(value, datetime_format):
+    # conditional logic to handle correct formatting of dates
+    # see https://code.djangoproject.com/ticket/32738
+    if django.VERSION[0] >= 4:
+        format = django.utils.formats.sanitize_strftime_format(datetime_format)
+        return value.strftime(format)
+    else:
+        return django.utils.datetime_safe.new_datetime(value).strftime(datetime_format)
 
 
-class Widget(object):
+class Widget:
     """
     A Widget takes care of converting between import and export representations.
 
@@ -42,7 +49,7 @@ class Widget(object):
         :meth:`~import_export.widgets.Widget.render` takes care of converting
         the object's field to a value that can be written to a spreadsheet.
         """
-        return force_text(value)
+        return force_str(value)
 
 
 class NumberWidget(Widget):
@@ -50,6 +57,8 @@ class NumberWidget(Widget):
     """
 
     def is_empty(self, value):
+        if isinstance(value, str):
+            value = value.strip()
         # 0 is not empty
         return value is None or value == ""
 
@@ -87,7 +96,7 @@ class DecimalWidget(NumberWidget):
     def clean(self, value, row=None, *args, **kwargs):
         if self.is_empty(value):
             return None
-        return Decimal(value)
+        return Decimal(force_str(value))
 
 
 class CharWidget(Widget):
@@ -96,23 +105,55 @@ class CharWidget(Widget):
     """
 
     def render(self, value, obj=None):
-        return force_text(value)
+        return force_str(value)
 
 
 class BooleanWidget(Widget):
     """
     Widget for converting boolean fields.
+
+    The widget assumes that ``True``, ``False``, and ``None`` are all valid
+    values, as to match Django's `BooleanField
+    <https://docs.djangoproject.com/en/dev/ref/models/fields/#booleanfield>`_.
+    That said, whether the database/Django will actually accept NULL values
+    will depend on if you have set ``null=True`` on that Django field.
+
+    While the BooleanWidget is set up to accept as input common variations of
+    "True" and "False" (and "None"), you may need to munge less common values
+    to ``True``/``False``/``None``. Probably the easiest way to do this is to
+    override the :func:`~import_export.resources.Resource.before_import_row`
+    function of your Resource class. A short example::
+
+        from import_export import fields, resources, widgets
+
+        class BooleanExample(resources.ModelResource):
+            warn = fields.Field(widget=widgets.BooleanWidget())
+
+            def before_import_row(self, row, row_number=None, **kwargs):
+                if "warn" in row.keys():
+                    # munge "warn" to "True"
+                    if row["warn"] in ["warn", "WARN"]:
+                        row["warn"] = True
+
+                return super().before_import_row(row, row_number, **kwargs)
     """
-    TRUE_VALUES = ["1", 1]
-    FALSE_VALUE = "0"
+    TRUE_VALUES = ["1", 1, True, "true", "TRUE", "True"]
+    FALSE_VALUES = ["0", 0, False, "false", "FALSE", "False"]
+    NULL_VALUES = ["", None, "null", "NULL", "none", "NONE", "None"]
 
     def render(self, value, obj=None):
-        if value is None:
+        """
+        On export, ``True`` is represented as ``1``, ``False`` as ``0``, and
+        ``None``/NULL as a empty string.
+
+        Note that these values are also used on the import confirmation view.
+        """
+        if value in self.NULL_VALUES:
             return ""
-        return self.TRUE_VALUES[0] if value else self.FALSE_VALUE
+        return self.TRUE_VALUES[0] if value else self.FALSE_VALUES[0]
 
     def clean(self, value, row=None, *args, **kwargs):
-        if value == "":
+        if value in self.NULL_VALUES:
             return None
         return True if value in self.TRUE_VALUES else False
 
@@ -149,10 +190,7 @@ class DateWidget(Widget):
     def render(self, value, obj=None):
         if not value:
             return ""
-        try:
-            return value.strftime(self.formats[0])
-        except:
-            return datetime_safe.new_date(value).strftime(self.formats[0])
+        return format_datetime(value, self.formats[0])
 
 
 class DateTimeWidget(Widget):
@@ -194,7 +232,9 @@ class DateTimeWidget(Widget):
     def render(self, value, obj=None):
         if not value:
             return ""
-        return value.strftime(self.formats[0])
+        if settings.USE_TZ:
+            value = timezone.localtime(value)
+        return format_datetime(value, self.formats[0])
 
 
 class TimeWidget(Widget):
@@ -217,6 +257,8 @@ class TimeWidget(Widget):
     def clean(self, value, row=None, *args, **kwargs):
         if not value:
             return None
+        if isinstance(value, time):
+            return value
         for format in self.formats:
             try:
                 return datetime.strptime(value, format).time()
@@ -230,24 +272,72 @@ class TimeWidget(Widget):
         return value.strftime(self.formats[0])
 
 
+class DurationWidget(Widget):
+    """
+    Widget for converting time duration fields.
+    """
+
+    def clean(self, value, row=None, *args, **kwargs):
+        if not value:
+            return None
+
+        try:
+            return parse_duration(value)
+        except (ValueError, TypeError):
+            raise ValueError("Enter a valid duration.")
+
+    def render(self, value, obj=None):
+        if value is None:
+            return ""
+        return str(value)
+
+
 class SimpleArrayWidget(Widget):
+    """
+    Widget for an Array field. Can be used for Postgres' Array field.
+
+    :param separator: Defaults to ``','``
+    """
+
     def __init__(self, separator=None):
         if separator is None:
             separator = ','
         self.separator = separator
-        super(SimpleArrayWidget, self).__init__()
+        super().__init__()
 
     def clean(self, value, row=None, *args, **kwargs):
         return value.split(self.separator) if value else []
 
     def render(self, value, obj=None):
-        return self.separator.join(six.text_type(v) for v in value)
+        return self.separator.join(str(v) for v in value)
+
+
+class JSONWidget(Widget):
+    """
+    Widget for a JSON object (especially required for jsonb fields in PostgreSQL database.)
+
+    :param value: Defaults to JSON format.
+    The widget covers two cases: Proper JSON string with double quotes, else it
+    tries to use single quotes and then convert it to proper JSON.
+    """
+
+    def clean(self, value, row=None, *args, **kwargs):
+        val = super().clean(value)
+        if val:
+            try:
+                return json.loads(val)
+            except json.decoder.JSONDecodeError:
+                return json.loads(val.replace("'", "\""))
+
+    def render(self, value, obj=None):
+        if value:
+            return json.dumps(value)
 
 
 class ForeignKeyWidget(Widget):
     """
     Widget for a ``ForeignKey`` field which looks up a related model using
-    "natural keys" in both export an import.
+    "natural keys" in both export and import.
 
     The lookup field defaults to using the primary key (``pk``) as lookup
     criterion but can be customised to use any field on the related model.
@@ -267,6 +357,9 @@ class ForeignKeyWidget(Widget):
     :class:`~import_export.widgets.ForeignKeyWidget` to lookup related objects
     using ``Author.name`` instead of ``Author.pk``::
 
+        from import_export import fields, resources
+        from import_export.widgets import ForeignKeyWidget
+
         class BookResource(resources.ModelResource):
             author = fields.Field(
                 column_name='author',
@@ -282,7 +375,7 @@ class ForeignKeyWidget(Widget):
     def __init__(self, model, field='pk', *args, **kwargs):
         self.model = model
         self.field = field
-        super(ForeignKeyWidget, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def get_queryset(self, value, row, *args, **kwargs):
         """
@@ -308,7 +401,7 @@ class ForeignKeyWidget(Widget):
         return self.model.objects.all()
 
     def clean(self, value, row=None, *args, **kwargs):
-        val = super(ForeignKeyWidget, self).clean(value)
+        val = super().clean(value)
         if val:
             return self.get_queryset(value, row, *args, **kwargs).get(**{self.field: val})
         else:
@@ -317,7 +410,19 @@ class ForeignKeyWidget(Widget):
     def render(self, value, obj=None):
         if value is None:
             return ""
-        return getattr(value, self.field)
+
+        attrs = self.field.split('__')
+        for attr in attrs:
+            try:
+                value = getattr(value, attr, None)
+            except (ValueError, ObjectDoesNotExist):
+                # needs to have a primary key value before a many-to-many
+                # relationship can be used.
+                return None
+            if value is None:
+                return None
+
+        return value
 
 
 class ManyToManyWidget(Widget):
@@ -338,20 +443,20 @@ class ManyToManyWidget(Widget):
         self.model = model
         self.separator = separator
         self.field = field
-        super(ManyToManyWidget, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def clean(self, value, row=None, *args, **kwargs):
         if not value:
             return self.model.objects.none()
-        if isinstance(value, float):
+        if isinstance(value, (float, int)):
             ids = [int(value)]
         else:
             ids = value.split(self.separator)
-        ids = filter(None, value.split(self.separator))
+            ids = filter(None, [i.strip() for i in ids])
         return self.model.objects.filter(**{
             '%s__in' % self.field: ids
         })
 
     def render(self, value, obj=None):
-        ids = [smart_text(getattr(obj, self.field)) for obj in value.all()]
+        ids = [smart_str(getattr(obj, self.field)) for obj in value.all()]
         return self.separator.join(ids)
