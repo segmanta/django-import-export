@@ -1,23 +1,21 @@
-from __future__ import unicode_literals
-
 import os.path
 
 from django import forms
 from django.contrib.admin.helpers import ActionForm
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 
 class ImportForm(forms.Form):
     import_file = forms.FileField(
-            label=_('File to import')
-            )
+        label=_('File to import')
+        )
     input_format = forms.ChoiceField(
-            label=_('Format'),
-            choices=(),
-            )
+        label=_('Format'),
+        choices=(),
+        )
 
     def __init__(self, import_formats, *args, **kwargs):
-        super(ImportForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         choices = []
         for i, f in enumerate(import_formats):
             choices.append((str(i), f().get_title(),))
@@ -40,12 +38,12 @@ class ConfirmImportForm(forms.Form):
 
 class ExportForm(forms.Form):
     file_format = forms.ChoiceField(
-            label=_('Format'),
-            choices=(),
-            )
+        label=_('Format'),
+        choices=(),
+        )
 
     def __init__(self, formats, *args, **kwargs):
-        super(ExportForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         choices = []
         for i, f in enumerate(formats):
             choices.append((str(i), f().get_title(),))

@@ -1,15 +1,13 @@
-# -*- coding: utf-8 -*-
 import os
 import tempfile
-
 from uuid import uuid4
 
 from django.core.cache import cache
-from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 
 
-class BaseStorage(object):
+class BaseStorage:
 
     def __init__(self, name=None):
         self.name = name
@@ -57,7 +55,7 @@ class CacheStorage(BaseStorage):
     By default memcache maximum size per key is 1MB, be careful with large files.
     """
     CACHE_LIFETIME = 86400
-    CACHE_PREFIX = u'django-import-export-'
+    CACHE_PREFIX = 'django-import-export-'
 
     def save(self, data, mode=None):
         if not self.name:
@@ -79,9 +77,9 @@ class MediaStorage(BaseStorage):
             self.name = uuid4().hex
         default_storage.save(self.get_full_path(), ContentFile(data))
 
-    def read(self, read_mode='r'):
-        with default_storage.open(self.get_full_path()) as file:
-            return file.read()
+    def read(self, read_mode='rb'):
+        with default_storage.open(self.get_full_path(), mode=read_mode) as f:
+            return f.read()
 
     def remove(self):
         default_storage.delete(self.get_full_path())

@@ -1,34 +1,9 @@
-from __future__ import unicode_literals
-from django.utils.six import moves
+from importlib import import_module
 
-import sys
-import warnings
 import tablib
 
-try:
-    from tablib.compat import xlrd
 
-    XLS_IMPORT = True
-except ImportError:
-    try:
-        import xlrd  # NOQA
-
-        XLS_IMPORT = True
-    except ImportError:
-        xls_warning = "Installed `tablib` library does not include"
-        "import support for 'xls' format and xlrd module is not found."
-        warnings.warn(xls_warning, ImportWarning)
-        XLS_IMPORT = False
-
-try:
-    from importlib import import_module
-except ImportError:
-    from django.utils.importlib import import_module
-
-from django.utils import six
-
-
-class Format(object):
+class Format:
     def get_title(self):
         return type(self)
 
@@ -38,7 +13,7 @@ class Format(object):
         """
         raise NotImplementedError()
 
-    def export_data(self, dataset):
+    def export_data(self, dataset, **kwargs):
         """
         Returns format representation for given dataset.
         """
@@ -63,8 +38,13 @@ class Format(object):
         return ""
 
     def get_content_type(self):
-        # For content types see http://www.iana.org/assignments/media-types/media-types.xhtml
+        # For content types see
+        # https://www.iana.org/assignments/media-types/media-types.xhtml
         return 'application/octet-stream'
+
+    @classmethod
+    def is_available(cls):
+        return True
 
     def can_import(self):
         return False
@@ -81,25 +61,33 @@ class TablibFormat(Format):
         """
         Import and returns tablib module.
         """
-        return import_module(self.TABLIB_MODULE)
+        try:
+            # Available since tablib 1.0
+            from tablib.formats import registry
+        except ImportError:
+            return import_module(self.TABLIB_MODULE)
+        else:
+            key = self.TABLIB_MODULE.split('.')[-1].replace('_', '')
+            return registry.get_format(key)
+
+    @classmethod
+    def is_available(cls):
+        try:
+            cls().get_format()
+        except (tablib.core.UnsupportedFormat, ImportError):
+            return False
+        return True
 
     def get_title(self):
         return self.get_format().title
 
-    def create_dataset(self, in_stream):
-        data = tablib.Dataset()
-        self.get_format().import_set(data, in_stream)
-        return data
+    def create_dataset(self, in_stream, **kwargs):
+        return tablib.import_set(in_stream, format=self.get_title())
 
-    def export_data(self, dataset):
-        return self.get_format().export_set(dataset)
+    def export_data(self, dataset, **kwargs):
+        return dataset.export(self.get_title(), **kwargs)
 
     def get_extension(self):
-        # we support both 'extentions' and 'extensions' because currently tablib's master
-        # branch uses 'extentions' (which is a typo) but it's dev branch already uses 'extension'.
-        # TODO - remove this once the typo is fixxed in tablib's master branch
-        if hasattr(self.get_format(), 'extentions'):
-            return self.get_format().extentions[0]
         return self.get_format().extensions[0]
 
     def get_content_type(self):
@@ -114,7 +102,7 @@ class TablibFormat(Format):
 
 class TextFormat(TablibFormat):
     def get_read_mode(self):
-        return 'rU'
+        return 'r'
 
     def is_binary(self):
         return False
@@ -124,11 +112,8 @@ class CSV(TextFormat):
     TABLIB_MODULE = 'tablib.formats._csv'
     CONTENT_TYPE = 'text/csv'
 
-    def create_dataset(self, in_stream):
-        if sys.version_info[0] < 3:
-            # python 2.7 csv does not do unicode
-            return super(CSV, self).create_dataset(in_stream.encode('utf-8'))
-        return super(CSV, self).create_dataset(in_stream)
+    def create_dataset(self, in_stream, **kwargs):
+        return super().create_dataset(in_stream, **kwargs)
 
 
 class JSON(TextFormat):
@@ -138,22 +123,21 @@ class JSON(TextFormat):
 
 class YAML(TextFormat):
     TABLIB_MODULE = 'tablib.formats._yaml'
-    CONTENT_TYPE = 'text/yaml' # See http://stackoverflow.com/questions/332129/yaml-mime-type
+    # See https://stackoverflow.com/questions/332129/yaml-mime-type
+    CONTENT_TYPE = 'text/yaml'
 
 
 class TSV(TextFormat):
     TABLIB_MODULE = 'tablib.formats._tsv'
     CONTENT_TYPE = 'text/tab-separated-values'
 
+    def create_dataset(self, in_stream, **kwargs):
+        return super().create_dataset(in_stream, **kwargs)
+
 
 class ODS(TextFormat):
     TABLIB_MODULE = 'tablib.formats._ods'
     CONTENT_TYPE = 'application/vnd.oasis.opendocument.spreadsheet'
-
-
-class XLSX(TextFormat):
-    TABLIB_MODULE = 'tablib.formats._xlsx'
-    CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 
 
 class HTML(TextFormat):
@@ -165,19 +149,58 @@ class XLS(TablibFormat):
     TABLIB_MODULE = 'tablib.formats._xls'
     CONTENT_TYPE = 'application/vnd.ms-excel'
 
-    def can_import(self):
-        return XLS_IMPORT
-
     def create_dataset(self, in_stream):
         """
         Create dataset from first sheet.
         """
-        assert XLS_IMPORT
+        import xlrd
         xls_book = xlrd.open_workbook(file_contents=in_stream)
         dataset = tablib.Dataset()
         sheet = xls_book.sheets()[0]
 
         dataset.headers = sheet.row_values(0)
-        for i in moves.range(1, sheet.nrows):
+        for i in range(1, sheet.nrows):
             dataset.append(sheet.row_values(i))
         return dataset
+
+
+class XLSX(TablibFormat):
+    TABLIB_MODULE = 'tablib.formats._xlsx'
+    CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+
+    def create_dataset(self, in_stream):
+        """
+        Create dataset from first sheet.
+        """
+        from io import BytesIO
+
+        import openpyxl
+
+        # 'data_only' means values are read from formula cells, not the formula itself
+        xlsx_book = openpyxl.load_workbook(BytesIO(in_stream), read_only=True, data_only=True)
+
+        dataset = tablib.Dataset()
+        sheet = xlsx_book.active
+
+        # obtain generator
+        rows = sheet.rows
+        dataset.headers = [cell.value for cell in next(rows)]
+
+        for row in rows:
+            row_values = [cell.value for cell in row]
+            dataset.append(row_values)
+        return dataset
+
+
+#: These are the default formats for import and export. Whether they can be
+#: used or not is depending on their implementation in the tablib library.
+DEFAULT_FORMATS = [fmt for fmt in (
+    CSV,
+    XLS,
+    XLSX,
+    TSV,
+    ODS,
+    JSON,
+    YAML,
+    HTML,
+) if fmt.is_available()]
